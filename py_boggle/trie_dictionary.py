@@ -1,52 +1,63 @@
 import typing
 from typing import Optional, Dict
-from collections.abc import Iterator
 
 from py_boggle.boggle_dictionary import BoggleDictionary
 
 
 class TrieNode:
     """
-    Our TrieNode class. Feel free to add new properties/functions, but 
+    Our TrieNode class. Feel free to add new properties/functions, but
     DO NOT edit the names of the given properties (children and is_word).
     """
     def __init__(self):
-        self.children : Dict[str, TrieNode] = {} # maps a child letter to its TrieNode class
-        self.is_word = False # whether or not this Node is a valid word ending
+        self.children: Dict[str, "TrieNode"] = {}  # maps a child letter to its TrieNode
+        self.is_word = False  # whether or not this Node is a valid word ending
 
 
 class TrieDictionary(BoggleDictionary):
-    """
-    Your implementation of BoggleDictionary.
-    Several functions have been filled in for you from our solution, but you are free to change their implementations.
-    Do NOT change the name of self.root, as our autograder will manually traverse using self.root
-    """
+    """Trie-backed BoggleDictionary. Do NOT rename self.root."""
 
     def __init__(self):
-        self.root : TrieNode = TrieNode()
+        self.root: TrieNode = TrieNode()
 
     def load_dictionary(self, filename: str) -> None:
-        # Remember to add every word to the trie, not just the words over some length.
         with open(filename) as wordsfile:
             for line in wordsfile:
                 word = line.strip().lower()
-                # Do something with word here
-        raise NotImplementedError("method load_dictionary") # TODO: implement your code here
+                if not word:
+                    continue
+                node = self.root
+                for ch in word:
+                    nxt = node.children.get(ch)
+                    if nxt is None:
+                        nxt = TrieNode()
+                        node.children[ch] = nxt
+                    node = nxt
+                node.is_word = True
 
     def traverse(self, prefix: str) -> Optional[TrieNode]:
-        """
-        Traverse will traverse the Trie down a given path of letters `prefix`.
-        If there is ever a missing child node, then returns None.
-        Otherwise, returns the TrieNode referenced by `prefix`.
-        """
-        raise NotImplementedError("method traverse") # TODO: implement your code here
+        """Follow `prefix` down the trie; None if any child is missing."""
+        node = self.root
+        for ch in prefix.lower():
+            node = node.children.get(ch)
+            if node is None:
+                return None
+        return node
 
     def is_prefix(self, prefix: str) -> bool:
-        raise NotImplementedError("method is_prefix") # TODO: implement your code here
+        return self.traverse(prefix) is not None
 
     def contains(self, word: str) -> bool:
-        raise NotImplementedError("method contains") # TODO: implement your code here
+        node = self.traverse(word)
+        return node is not None and node.is_word
 
     def __iter__(self) -> typing.Iterator[str]:
-        raise NotImplementedError("method __iter__") # TODO: implement your code here
+        # Generator: each call gets independent state, raises StopIteration
+        # when exhausted, and yields words in lexicographic order.
+        def walk(node: TrieNode, prefix: str):
+            if node.is_word:
+                yield prefix
+            for ch in sorted(node.children):
+                yield from walk(node.children[ch], prefix + ch)
 
+        return walk(self.root, "")

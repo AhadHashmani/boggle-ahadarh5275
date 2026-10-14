@@ -20,6 +20,7 @@ Groupmate 2: TODO
 
 SHORT = 3
 CUBE_SIDES = 6
+DIRECTIONS = [(-1, -1), (-1, 0), (-1, 1), (0, -1), (0, 1), (1, -1), (1, 0), (1, 1)]
 
 class MyGameManager(BoggleGame):
     """Your implementation of `BoggleGame`
@@ -72,7 +73,36 @@ class MyGameManager(BoggleGame):
         If `word` is not present on the board, return None.
         """
         word = word.lower()
-        raise NotImplementedError("method find_word_in_board") # TODO: implement your code here
+        if not word:
+            return None
+        n = len(self.board)
+        used = [[False] * n for _ in range(n)]
+        path: List[Tuple[int, int]] = []
+
+        def dfs(r: int, c: int, i: int) -> bool:
+            # Match word[i:] starting at cell (r, c); a cell may hold >1 letter.
+            cell = self.board[r][c]
+            if not word.startswith(cell, i):
+                return False
+            used[r][c] = True
+            path.append((r, c))
+            j = i + len(cell)
+            if j == len(word):
+                return True
+            for dr, dc in DIRECTIONS:
+                nr, nc = r + dr, c + dc
+                if 0 <= nr < n and 0 <= nc < n and not used[nr][nc]:
+                    if dfs(nr, nc, j):
+                        return True
+            used[r][c] = False
+            path.pop()
+            return False
+
+        for r in range(n):
+            for c in range(n):
+                if dfs(r, c, 0):
+                    return path
+        return None
 
     def add_word(self, word: str) -> int:
         """This method is provided for you, but feel free to change it.
@@ -95,6 +125,9 @@ class MyGameManager(BoggleGame):
         """This method is provided for you, but feel free to change it.
         """
         self.board = [[c.lower() for c in row] for row in board]
+        self.size = len(board)
+        self.words = []
+        self.last_added_word = None
 
     def get_score(self) -> int:
         """This method is provided for you, but feel free to change it.
@@ -110,7 +143,11 @@ class MyGameManager(BoggleGame):
         Returns:
             A set containing all words found on the board.
         """
-        raise NotImplementedError("method dictionary_driven_search") # TODO: implement your code here
+        found: Set[str] = set()
+        for word in self.dictionary:
+            if len(word) > SHORT and self.find_word_in_board(word) is not None:
+                found.add(word)
+        return found
 
     def board_driven_search(self) -> Set[str]:
         """Find all words using a board-driven search.
@@ -122,4 +159,24 @@ class MyGameManager(BoggleGame):
         Returns:
             A set containing all words found on the board.
         """
-        raise NotImplementedError("method board_driven_search") # TODO: implement your code here
+        found: Set[str] = set()
+        n = len(self.board)
+        used = [[False] * n for _ in range(n)]
+
+        def dfs(r: int, c: int, prefix: str) -> None:
+            prefix += self.board[r][c]
+            if not self.dictionary.is_prefix(prefix):
+                return  # dead end: prune
+            if len(prefix) > SHORT and self.dictionary.contains(prefix):
+                found.add(prefix)
+            used[r][c] = True
+            for dr, dc in DIRECTIONS:
+                nr, nc = r + dr, c + dc
+                if 0 <= nr < n and 0 <= nc < n and not used[nr][nc]:
+                    dfs(nr, nc, prefix)
+            used[r][c] = False
+
+        for r in range(n):
+            for c in range(n):
+                dfs(r, c, "")
+        return found
